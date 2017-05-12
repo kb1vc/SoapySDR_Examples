@@ -32,7 +32,8 @@ void readBuffer(SoapySDR::Device * dev, SoapySDR::Stream * str, size_t len)
   std::complex<float> * v = new std::complex<float>[len];
   std::complex<float> * buf[1]; 
 
-  buf[0] = v; 
+  buf[0] = v;
+  std::cerr << "\n\nAbout to read a buffer" << std::endl;   
 
   int flags = SOAPY_SDR_END_BURST; 
   size_t togo = len; 
@@ -49,7 +50,7 @@ void readBuffer(SoapySDR::Device * dev, SoapySDR::Stream * str, size_t len)
       buf[0] += stat; 
     }
   }
-  
+  std::cerr << "Read the buffer" << std::endl;     
   delete v; 
 }
 
@@ -80,6 +81,7 @@ void writeBuffer(SoapySDR::Device * dev, SoapySDR::Stream * str,
 
   buf[0] = vec; 
 
+  std::cerr << "\n\nAbout to write a buffer" << std::endl; 
   int stat; 
   int flags = SOAPY_SDR_END_BURST; 
   size_t togo = len; 
