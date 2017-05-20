@@ -21,37 +21,6 @@ const char * end_message[3] = {   "End of 1kHz tone - no modulation present\n\td
 			    "",
 			    "End of 2kHz tone - no modulation present\n\tdead carrier amplitude is from last transmitted sample."
 };
-
-const std::string flags2String(unsigned int flag) {
-  std::string ret; 
-  std::string sep(""); 
-  if((flag & SOAPY_SDR_END_ABRUPT) != 0) {
-    ret = "END_ABRUPT"; 
-    sep = std::string(" "); 
-  }
-
-  if((flag & SOAPY_SDR_END_BURST) != 0) {
-    ret = ret + sep + "END_BURST"; 
-    sep = std::string(" "); 
-  }
-
-  if((flag & SOAPY_SDR_HAS_TIME) != 0) {
-    ret = ret + sep + "HAS_TIME"; 
-    sep = std::string(" "); 
-  }
-
-  if((flag & SOAPY_SDR_MORE_FRAGMENTS) != 0) {
-    ret = ret + sep + "MORE_FRAGMENTS"; 
-    sep = std::string(" "); 
-  }
-
-  if((flag & SOAPY_SDR_ONE_PACKET) != 0) {
-    ret = ret + sep + "ONE_PACKET"; 
-    sep = std::string(" "); 
-  }
-
-  return ret; 
-}
 			      
 int main()
 {
@@ -83,16 +52,15 @@ int main()
   int buflen = 30000;     
   std::complex<float> mybuf[3][buflen];
   std::complex<float> * txbufs[1];
-  std::complex<float> zerobuf[buflen]; 
+
   double ang = 0.0; 
   double angincr = 2.0 * M_PI / 625.0; 
-  float amplitude = 0.25; 
+
   // write a 1kHz and 2kHz sinusoid to buffers 0 and 2.  Write silence to buffer 1
-  for(int i = 0; i < buflen; i++) {
-    std::complex<float> half(amplitude,0.0);
+  for(int i = 0; i < 3; i++) {
+    std::complex<float> half(0.5,0.0);
     mybuf[0][i] = half * std::complex<float>(cos(ang), sin(ang)); 
     mybuf[1][i] = std::complex<float>(0.0, 0.0);
-    zerobuf[i] = std::complex<float>(0.0, 0.0);    
     mybuf[2][i] = half * std::complex<float>(cos(ang*2.0), sin(ang*2.0));     
     ang += angincr; 
     if (ang > M_PI) {
@@ -119,23 +87,14 @@ int main()
       % stat % SoapySDR::errToStr(stat);
   }
 #endif
-
-  // clear status from startup awkwardness.
-  long long timeNs = 0; 
-  size_t chan_mask = 1;
-  int flags = 0;  
-  stat = dev->readStreamStatus(txstr, chan_mask, flags, timeNs, 10 * 1000 * 1000);  // 10 second timeout
-  std::cerr << boost::format("FIRST readStreamStatus got stat = %d [%s]  flags = %d [%s]  timeNs = %ld\n")
-    % stat % SoapySDR::errToStr(stat) % flags % flags2String(flags) % timeNs;
-
-
   
   // send 5 seconds of stuff.
   int numiters = 5 * sample_rate / buflen;
+  int flags = 0;
   int trips = 0;
   bool stream_active = false; 
 
-  for(int j = 0; j < 3; j++) {
+  for(int j = 0; j < 1; j++) {
     trips = 0;     
     std::cerr << boost::format("\n\n\n\n\n%s\n\n") % start_message[j]; 
     for(int i = 0; i < numiters; i++) {
@@ -145,7 +104,6 @@ int main()
       if((i + 1) == numiters) {
 	std::cerr << "Sending end burst\n";
 	flags |= SOAPY_SDR_END_BURST; 
-	txbufs[0] = zerobuf; 
       }
 
       if(!stream_active) {
@@ -170,30 +128,31 @@ int main()
 	  txbufs[0] += stat; 
 	}
 	else {
-	  std::cerr << boost::format("writeStream got bad return stat = %d [%s] flags = %d [%s]\n")
-	    % stat % SoapySDR::errToStr(stat) % flags % flags2String(flags); 
+	  std::cerr << boost::format("writeStream got bad return stat = %d [%s] flags = %d\n")
+	    % stat % SoapySDR::errToStr(stat) % flags; 
 	}
 
 	trips++; 
       }
     }
 
+    long long timeNs = 0; 
+    size_t chan_mask = 1;
     flags = 0;    
-    while((flags & SOAPY_SDR_END_BURST) == 0) {
-      stat = dev->readStreamStatus(txstr, chan_mask, flags, timeNs, 10 * 1000 * 1000);  // 10 second timeout
-      std::cerr << boost::format("readStreamStatus got stat = %d [%s]  flags = %d [%s]  timeNs = %ld\n")
-	% stat % SoapySDR::errToStr(stat) % flags % flags2String(flags) % timeNs;
-      usleep(100000);
-    }
+    stat = dev->readStreamStatus(txstr, chan_mask, flags, timeNs, 10 * 1000 * 1000);  // 10 second timeout
+    std::cerr << boost::format("readStreamStatus got stat = %d [%s]  flags = %d  timeNs = %ld\n")
+      % stat % SoapySDR::errToStr(stat) % flags % timeNs;
 
-    // sleep(5);
     std::cerr << boost::format("\n\n\n\n\n%s\n\n") % end_message[j];     
+    sleep(10);     
   }
 
   flags = 0; 
+  long long timeNs = 0; 
+  size_t chan_mask = 1; 
   stat = dev->readStreamStatus(txstr, chan_mask, flags, timeNs, 10 * 1000000); 
-  std::cerr << boost::format("readStreamStatus got stat = %d [%s]  flags = %d [%s]  timeNs = %ld\n")
-      % stat % SoapySDR::errToStr(stat) % flags % flags2String(flags) % timeNs; 
+  std::cerr << boost::format("readStreamStatus got stat = %d [%s]  flags = %d  timeNs = %ld\n")
+      % stat % SoapySDR::errToStr(stat) % flags % timeNs; 
 
   stat = dev->deactivateStream(txstr, 0, 0); 
   if(stat < 0) {

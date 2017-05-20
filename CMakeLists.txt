@@ -22,3 +22,7 @@ ADD_EXECUTABLE(WriteStreamTest WriteStreamTest.cxx)
 
 TARGET_LINK_LIBRARIES(WriteStreamTest rt ${SoapySDR_LIBRARIES})
 
+ADD_EXECUTABLE(EndOfBurstTest EndOfBurstTest.cxx)
+
+TARGET_LINK_LIBRARIES(EndOfBurstTest rt ${SoapySDR_LIBRARIES})
+
